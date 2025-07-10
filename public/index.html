@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Factory - Q&A Generation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <script>
+        // Required setup for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    </script>
+    <style>
+        /* Minimal styles for a clean interface */
+        .input-field {
+            @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all bg-white;
+        }
+        .btn {
+            @apply px-6 py-3 text-white rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg;
+        }
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700;
+        }
+        .btn-secondary {
+            @apply bg-green-600 hover:bg-green-700;
+        }
+        .btn-danger {
+            @apply bg-red-600 hover:bg-red-700;
+        }
+        .table-header {
+            @apply px-6 py-3 text-left text-sm font-bold text-white uppercase tracking-wider bg-gray-800 sticky top-0;
+        }
+        .table-cell {
+            @apply px-6 py-4 whitespace-normal break-words;
+        }
+        #result-table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-3xl font-bold mb-4">Knowledge Factory</h1>
+
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <form id="qa-form" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="file-upload" class="block text-sm font-medium text-gray-700">1. Upload Document</label>
+                        <input type="file" id="file-upload" accept=".pdf,.docx" class="input-field mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <div>
+                        <label for="document-language" class="block text-sm font-medium text-gray-700">2. Document Language</label>
+                        <select id="document-language" class="input-field mt-1">
+                            <option value="English">English</option>
+                            <option value="Chinese Simplified">Chinese</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="user-id" class="block text-sm font-medium text-gray-700">3. User ID</label>
+                        <input type="text" id="user-id" class="input-field mt-1" placeholder="e.g., user-123">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="kb-name" class="block text-sm font-medium text-gray-700">4. New Knowledge Base Name</label>
+                    <input type="text" id="kb-name" class="input-field mt-1" placeholder="e.g., product-manual-v1">
+                </div>
+                <div>
+                    <label for="generation-requirements" class="block text-sm font-medium text-gray-700">5. Generation Requirements (Optional)</label>
+                    <textarea id="generation-requirements" class="input-field mt-1 min-h-[120px]" placeholder="Enter any specific instructions for Q&A generation..."></textarea>
+                </div>
+
+                <div class="flex flex-wrap gap-4 pt-4 border-t">
+                    <button type="button" id="generate-button" class="btn btn-primary">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Q&A
+                    </button>
+                    <button type="button" id="export-csv-button" class="btn btn-secondary">
+                        <i class="fa-solid fa-file-csv"></i> Export as CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4">Results</h2>
+            <div id="status" class="bg-gray-100 p-4 rounded-lg border mb-4 text-center">Waiting for action...</div>
+            <div id="result-table-container">
+                <table id="result-table" class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="table-header w-1/12">#</th>
+                            <th class="table-header w-5/12">Question</th>
+                            <th class="table-header w-6/12">Answer</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = ''; // The server is on the same origin
+        let activeDatasetId = "";
+        let activeDocumentIds = [];
+
+        // --- Event Listeners ---
+        document.getElementById('generate-button').addEventListener('click', handleGeneration);
+        document.getElementById('export-csv-button').addEventListener('click', exportToCsv);
+         document.addEventListener("DOMContentLoaded", () => {
+        // This is the main trigger for the retrieval process
+        document.getElementById("query-button").addEventListener("click", handleQuery);
+    });
+
+        /**
+         * Main function to handle the Q&A generation process.
+         */
+        async function handleGeneration() {
+            // 1. Get and validate inputs
+            const fileInput = document.getElementById('file-upload');
+            const file = fileInput.files[0];
+            const userId = document.getElementById('user-id').value;
+            const kbName = document.getElementById('kb-name').value;
+            const language = document.getElementById('document-language').value;
+            const requirements = document.getElementById('generation-requirements').value;
+            const resultTableBody = document.getElementById('result-table-body');
+            
+            if (!file || !userId || !kbName) {
+                updateStatus('Please fill all fields: Upload Document, User ID, and Knowledge Base Name.', 'error');
+                return;
+            }
+
+            // 2. Reset UI
+            resultTableBody.innerHTML = '';
+            updateStatus('Starting process...', 'loading');
+
+            try {
+                // 3. Parse file into text chunks
+                const chunks = await parseFileIntoChunks(file);
+                if (!chunks || chunks.length === 0) {
+                    throw new Error('Could not extract any text from the file.');
+                }
+                updateStatus(`File parsed into ${chunks.length} text chunks.`, 'info');
+
+                // 4. Create the empty Q&A knowledge base
+                updateStatus('Creating Q&A knowledge base...', 'loading');
+                const { qa_dataset_id, qa_document_id } = await createQAKnowledgeBase(kbName, language, userId);
+                updateStatus('Knowledge base created. Starting Q&A generation...', 'info');
+                
+                // 5. Process each chunk to generate Q&A
+                let globalRowIndex = 1;
+                for (const chunk of chunks) {
+                    updateStatus(`Processing chunk ${globalRowIndex}/${chunks.length}...`, 'loading');
+                    const qaPairs = await generateQaFromChunk(chunk, language, qa_dataset_id, qa_document_id, userId, requirements);
+                    
+                    qaPairs.forEach(pair => {
+                        const row = resultTableBody.insertRow();
+                        row.innerHTML = `
+                            <td class="table-cell text-center">${globalRowIndex++}</td>
+                            <td class="table-cell">${pair.content || 'N/A'}</td>
+                            <td class="table-cell">${pair.answer || 'N/A'}</td>
+                        `;
+                    });
+                    // Auto-scroll to the bottom of the table
+                    document.getElementById('result-table-container').scrollTop = document.getElementById('result-table-container').scrollHeight;
+                }
+
+                updateStatus(`Generation complete! ${resultTableBody.rows.length} Q&A pairs created.`, 'success');
+
+            } catch (error) {
+                updateStatus(`An error occurred: ${error.message}`, 'error');
+                console.error('Generation process failed:', error);
+            }
+        }
+
+        /**
+         * Parses the uploaded file (PDF or DOCX) into an array of text chunks.
+         */
+        async function parseFileIntoChunks(file) {
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            if (fileExtension === 'pdf') {
+                return await parsePdf(file);
+            } else if (fileExtension === 'docx') {
+                return await parseDocx(file);
+            } else {
+                throw new Error('Unsupported file type. Please upload a PDF or DOCX file.');
+            }
+        }
+
+        async function parsePdf(file) {
+            const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
+            const pdf = await loadingTask.promise;
+            const chunks = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                if (pageText.trim()) {
+                    chunks.push(pageText);
+                }
+            }
+            return chunks;
+        }
+
+        async function parseDocx(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            // Split the text into manageable chunks (e.g., by paragraph or character count)
+            return result.value.split(/\n\s*\n/).filter(p => p.trim());
+        }
+
+        /**
+         * Creates an empty Q&A knowledge base via the backend API.
+         */
+        async function createQAKnowledgeBase(kbName, language, userId) {
+            const response = await fetch(`${API_BASE_URL}/api/qa/create_qa_knowledge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    inputs: {
+                        qa_knowledge_name: kbName,
+                        doc_language: language,
+                        clear_history: "否"
+                    },
+                    response_mode: "blocking",
+                    user: userId
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to create QA knowledge base.');
+            return data.data.outputs;
+        }
+
+        /**
+         * Sends a text chunk to the backend to generate Q&A pairs.
+         */
+        async function generateQaFromChunk(chunk, language, qaDatasetId, qaDocumentId, userId, requirements) {
+            const response = await fetch(`${API_BASE_URL}/api/qa/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    inputs: {
+                        chunk: chunk,
+                        doc_language: language,
+                        qa_dataset_id: qaDatasetId,
+                        qa_document_id: qaDocumentId,
+                        generation_requirements: requirements,
+                        excluded_questions: "" // This can be enhanced later if needed
+                    },
+                    response_mode: "blocking",
+                    user: userId
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to generate Q&A for a chunk.');
+            return data.data?.outputs?.result?.[0]?.response?.data || [];
+        }
+
+        /**
+         * Exports the content of the results table to a CSV file.
+         */
+        function exportToCsv() {
+            const table = document.getElementById("result-table");
+            if (table.rows.length <= 1) {
+                updateStatus('No data to export.', 'warning');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Index,Question,Answer\n"; // Header row
+
+            for (let i = 1; i < table.rows.length; i++) {
+                const cells = table.rows[i].cells;
+                const rowData = Array.from(cells).map(cell => `"${cell.textContent.replace(/"/g, '""')}"`).join(',');
+                csvContent += rowData + "\r\n";
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "qa_results.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        /**
+         * Updates the status message display.
+         */
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById("status");
+            let colorClass = 'bg-gray-100';
+            if (type === 'success') colorClass = 'bg-green-100 text-green-800';
+            if (type === 'error') colorClass = 'bg-red-100 text-red-800';
+            if (type === 'loading') colorClass = 'bg-blue-100 text-blue-800 animate-pulse';
+            
+            statusDiv.className = `p-4 rounded-lg border text-center ${colorClass}`;
+            statusDiv.textContent = message;
+        }
+    </script>
+</body>
+
+</html>
