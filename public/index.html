@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knowledge Factory - Q&A Generation</title>
+    <title>Knowledge Factory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -41,71 +41,169 @@
             max-height: 500px;
             overflow-y: auto;
         }
+
+        /* Custom styles for navigation bar responsiveness */
+        @media (max-width: 767px) {
+            .navbar-collapse {
+                display: none; /* Hidden by default on mobile */
+                width: 100%;
+            }
+            .navbar-collapse.active {
+                display: flex; /* Shown when active */
+                flex-direction: column;
+                align-items: center;
+                margin-top: 1rem;
+            }
+            .navbar-nav {
+                flex-direction: column;
+                width: 100%;
+            }
+            .nav-item {
+                margin: 0.5rem 0;
+            }
+            .navbar-cta-mobile {
+                display: flex; /* Show CTA buttons on mobile when menu is active */
+                flex-direction: column;
+                width: 100%;
+                gap: 0.5rem;
+                margin-top: 1rem;
+            }
+        }
     </style>
 </head>
 
-<body class="bg-gray-50 font-sans">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 class="text-3xl font-bold mb-4">Knowledge Factory</h1>
+<body class="bg-gray-50 font-sans min-h-screen flex flex-col">
+    <nav class="bg-gray-800 p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center flex-wrap">
+            <a href="#" class="text-white text-2xl font-bold hover:text-gray-300 transition-colors" data-page-id="qa-generation-section">Knowledge Factory</a>
+            
+            <button class="text-gray-300 hover:text-white md:hidden focus:outline-none" id="navbar-toggler">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
 
-        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
-            <form id="qa-form" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label for="file-upload" class="block text-sm font-medium text-gray-700">1. Upload Document</label>
-                        <input type="file" id="file-upload" accept=".pdf,.docx" class="input-field mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                    </div>
-                    <div>
-                        <label for="document-language" class="block text-sm font-medium text-gray-700">2. Document Language</label>
-                        <select id="document-language" class="input-field mt-1">
-                            <option value="English">English</option>
-                            <option value="Chinese Simplified">Chinese</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="user-id" class="block text-sm font-medium text-gray-700">3. User ID</label>
-                        <input type="text" id="user-id" class="input-field mt-1" placeholder="e.g., user-123">
-                    </div>
+            <div class="navbar-collapse w-full md:flex md:items-center md:w-auto" id="navbar-links">
+                <ul class="navbar-nav flex flex-col md:flex-row md:space-x-8 mt-4 md:mt-0">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white hover:text-gray-300 transition-colors px-3 py-2 rounded-md bg-blue-600" data-page-id="qa-generation-section">Q&A Generation</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#qa-retrieval" class="nav-link text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md" data-page-id="qa-retrieval">Q&A Retrieval</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#settings" class="nav-link text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md" data-page-id="settings">Settings</a>
+                    </li>
+                </ul>
+                <div class="navbar-cta-mobile flex-col md:flex md:flex-row md:ml-8 gap-3 mt-4 md:mt-0">
+                    <a href="#login" class="btn btn-primary text-sm">Login</a>
+                    <a href="#signup" class="btn btn-secondary text-sm">Sign Up</a>
                 </div>
-
-                <div>
-                    <label for="kb-name" class="block text-sm font-medium text-gray-700">4. New Knowledge Base Name</label>
-                    <input type="text" id="kb-name" class="input-field mt-1" placeholder="e.g., product-manual-v1">
-                </div>
-                <div>
-                    <label for="generation-requirements" class="block text-sm font-medium text-gray-700">5. Generation Requirements (Optional)</label>
-                    <textarea id="generation-requirements" class="input-field mt-1 min-h-[120px]" placeholder="Enter any specific instructions for Q&A generation..."></textarea>
-                </div>
-
-                <div class="flex flex-wrap gap-4 pt-4 border-t">
-                    <button type="button" id="generate-button" class="btn btn-primary">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Q&A
-                    </button>
-                    <button type="button" id="export-csv-button" class="btn btn-secondary">
-                        <i class="fa-solid fa-file-csv"></i> Export as CSV
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4">Results</h2>
-            <div id="status" class="bg-gray-100 p-4 rounded-lg border mb-4 text-center">Waiting for action...</div>
-            <div id="result-table-container">
-                <table id="result-table" class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                        <tr>
-                            <th class="table-header w-1/12">#</th>
-                            <th class="table-header w-5/12">Question</th>
-                            <th class="table-header w-6/12">Answer</th>
-                        </tr>
-                    </thead>
-                    <tbody id="result-table-body" class="bg-white divide-y divide-gray-200">
-                        </tbody>
-                </table>
             </div>
         </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8 max-w-4xl flex-grow">
+        <div id="qa-generation-section" class="space-y-8">
+            <h1 class="text-3xl font-bold mb-4 text-center">Q&A Generation</h1>
+
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <form id="qa-form" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="file-upload" class="block text-sm font-medium text-gray-700">1. Upload Document</label>
+                            <input type="file" id="file-upload" accept=".pdf,.docx" class="input-field mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                        <div>
+                            <label for="document-language" class="block text-sm font-medium text-gray-700">2. Document Language</label>
+                            <select id="document-language" class="input-field mt-1">
+                                <option value="English">English</option>
+                                <option value="Chinese Simplified">Chinese</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="user-id" class="block text-sm font-medium text-gray-700">3. User ID</label>
+                            <input type="text" id="user-id" class="input-field mt-1" placeholder="e.g., user-123">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="kb-name" class="block text-sm font-medium text-gray-700">4. New Knowledge Base Name</label>
+                        <input type="text" id="kb-name" class="input-field mt-1" placeholder="e.g., product-manual-v1">
+                    </div>
+                    <div>
+                        <label for="generation-requirements" class="block text-sm font-medium text-gray-700">5. Generation Requirements (Optional)</label>
+                        <textarea id="generation-requirements" class="input-field mt-1 min-h-[120px]" placeholder="Enter any specific instructions for Q&A generation..."></textarea>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4 pt-4 border-t">
+                        <button type="button" id="generate-button" class="btn btn-primary">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Q&A
+                        </button>
+                        <button type="button" id="export-csv-button" class="btn btn-secondary">
+                            <i class="fa-solid fa-file-csv"></i> Export as CSV
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Results</h2>
+                <div id="status" class="bg-gray-100 p-4 rounded-lg border mb-4 text-center">Waiting for action...</div>
+                <div id="result-table-container">
+                    <table id="result-table" class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="table-header w-1/12">#</th>
+                                <th class="table-header w-5/12">Question</th>
+                                <th class="table-header w-6/12">Answer</th>
+                            </tr>
+                        </thead>
+                        <tbody id="result-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="qa-retrieval" class="bg-white rounded-xl shadow-md p-6 mt-8 hidden">
+            <h1 class="text-3xl font-bold mb-4 text-center">Q&A Retrieval</h1>
+            <p class="text-gray-600 mb-4">This section would allow users to query an existing knowledge base and retrieve answers.</p>
+            <div class="space-y-4">
+                <div>
+                    <label for="query-input" class="block text-sm font-medium text-gray-700">Enter your query:</label>
+                    <input type="text" id="query-input" class="input-field mt-1" placeholder="e.g., What are the product specifications?">
+                </div>
+                <div>
+                    <label for="kb-select-retrieval" class="block text-sm font-medium text-gray-700">Select Knowledge Base:</label>
+                    <select id="kb-select-retrieval" class="input-field mt-1">
+                        <option value="">-- Select a KB --</option>
+                        <option value="example-kb-1">Product Manual v1</option>
+                        <option value="example-kb-2">Company Policy Docs</option>
+                    </select>
+                </div>
+                <button type="button" id="query-button" class="btn btn-primary">
+                    <i class="fa-solid fa-search"></i> Search Knowledge Base
+                </button>
+                <div class="bg-gray-100 p-4 rounded-lg mt-4" id="query-result-display">
+                    <p class="text-gray-700">Query result will appear here.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings" class="bg-white rounded-xl shadow-md p-6 mt-8 hidden">
+            <h1 class="text-3xl font-bold mb-4 text-center">Settings</h1>
+            <p class="text-gray-600">Manage application settings and preferences here. This could include API key management, user profiles, etc.</p>
+            <div class="mt-6">
+                <label for="api-key-setting" class="block text-sm font-medium text-gray-700">API Key</label>
+                <input type="password" id="api-key-setting" class="input-field mt-1" placeholder="****************">
+                <button class="btn btn-secondary mt-3">Save Settings</button>
+            </div>
+        </div>
+
     </div>
+
+    <footer class="bg-gray-800 text-white text-center p-4 mt-8">
+        <p>&copy; 2025 Knowledge Factory. All rights reserved.</p>
+    </footer>
 
     <script>
         const API_BASE_URL = ''; // The server is on the same origin
@@ -115,10 +213,184 @@
         // --- Event Listeners ---
         document.getElementById('generate-button').addEventListener('click', handleGeneration);
         document.getElementById('export-csv-button').addEventListener('click', exportToCsv);
-         document.addEventListener("DOMContentLoaded", () => {
-        // This is the main trigger for the retrieval process
-        document.getElementById("query-button").addEventListener("click", handleQuery);
-    });
+
+        // Navbar Toggler for mobile
+        document.getElementById('navbar-toggler').addEventListener('click', () => {
+            const navbarLinks = document.getElementById('navbar-links');
+            navbarLinks.classList.toggle('active');
+        });
+
+        // --- Page Navigation (Simple Hash-based for this example) ---
+        // Function to show/hide sections based on pageId
+        function navigateToPage(pageId) {
+            // Define all main content sections by their IDs
+            const allSections = ['qa-generation-section', 'qa-retrieval', 'settings'];
+
+            allSections.forEach(id => {
+                const section = document.getElementById(id);
+                if (section) {
+                    section.classList.add('hidden'); // Hide all sections
+                }
+            });
+
+            // Load knowledge bases when navigating to the retrieval page ---
+            if (pageId === 'qa-retrieval') {
+                loadKnowledgeBases();
+            }
+
+            // Show the target section
+            const targetSection = document.getElementById(pageId);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+
+            // Update active navigation link styling
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('bg-blue-600', 'text-white');
+                link.classList.add('text-gray-300'); // Default inactive color
+            });
+
+            const activeLink = document.querySelector(`.nav-link[data-page-id="${pageId}"]`);
+            if (activeLink) {
+                activeLink.classList.add('bg-blue-600', 'text-white'); // Active color
+                activeLink.classList.remove('text-gray-300');
+            }
+
+            // Also update the brand link if it's clicked to navigate to the "home" page
+            const brandLink = document.querySelector('.navbar-brand');
+            if (pageId === 'qa-generation-section' && brandLink) {
+                brandLink.classList.add('text-white'); // Ensure brand is white
+                brandLink.classList.remove('text-gray-300');
+            } else if (brandLink) {
+                // If on another page, make the brand link appear like other inactive links visually
+                brandLink.classList.remove('text-white');
+                brandLink.classList.add('text-gray-300');
+            }
+        }
+
+        // Handle initial page load based on URL hash or default to Q&A Generation
+        document.addEventListener("DOMContentLoaded", () => {
+            const initialHash = window.location.hash.substring(1); // Remove '#' from hash
+            const defaultPage = 'qa-generation-section';
+            
+            // Check if the hash corresponds to a known section, otherwise default
+            if (initialHash && ['qa-generation-section', 'qa-retrieval', 'settings'].includes(initialHash)) {
+                navigateToPage(initialHash);
+            } else {
+                navigateToPage(defaultPage); // Default to Q&A Generation
+                window.history.replaceState(null, '', '#'); // Clean URL if no valid hash initially
+            }
+
+            // Attach click listeners for all navigation links
+            document.querySelectorAll('.nav-link, .navbar-brand').forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault(); // Prevent default link behavior
+                    const pageId = link.dataset.pageId; // Get the custom data attribute
+                    
+                    if (pageId) {
+                        // Update URL hash without full page reload
+                        if (pageId === 'qa-generation-section') {
+                            window.location.hash = ''; // Clear hash for the default page
+                        } else {
+                            window.location.hash = pageId;
+                        }
+                        navigateToPage(pageId);
+                    }
+                    
+                    // Close mobile menu after clicking a link
+                    const navbarLinks = document.getElementById('navbar-links');
+                    if (navbarLinks.classList.contains('active')) {
+                        navbarLinks.classList.remove('active');
+                    }
+                });
+            });
+
+            // Placeholder for the "query-button" from the Q&A Retrieval section
+            // You'd connect this to your backend for actual retrieval logic
+            const queryButton = document.getElementById("query-button");
+            if (queryButton) {
+                queryButton.addEventListener("click", handleQuery);
+            }
+        });
+
+
+        // Placeholder function for handleQuery (for the new Retrieval section)
+        async function handleQuery() {
+            const queryInput = document.getElementById('query-input').value;
+            const kbSelect = document.getElementById('kb-select-retrieval').value;
+            const queryResultDisplay = document.getElementById('query-result-display');
+
+            if (!queryInput || !kbSelect) {
+                queryResultDisplay.innerHTML = '<p class="text-red-600">Please enter a query and select a knowledge base.</p>';
+                return;
+            }
+
+            queryResultDisplay.innerHTML = '<p class="text-blue-600 animate-pulse">Searching...</p>';
+
+            try {
+                // Simulate API call - REPLACE WITH YOUR ACTUAL RETRIEVAL API ENDPOINT
+                const response = await fetch(`${API_BASE_URL}/api/qa/retrieve`, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: queryInput,
+                        dataset_id: kbSelect,
+                        user: document.getElementById('user-id').value // Or a dedicated user ID for retrieval
+                    })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to retrieve answer.');
+                }
+
+                if (data.data && data.data.outputs && data.data.outputs.answer) {
+                    queryResultDisplay.innerHTML = `<p class="font-semibold">Answer:</p><p>${data.data.outputs.answer}</p>`;
+                } else {
+                    queryResultDisplay.innerHTML = '<p class="text-gray-700">No relevant answer found.</p>';
+                }
+
+            } catch (error) {
+                queryResultDisplay.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`;
+                console.error('Retrieval failed:', error);
+            }
+        }
+        async function waitForDocumentCompletion(documentId, userId) {
+            let isCompleted = false;
+            let attempts = 0;
+            const maxAttempts = 10;
+            const delayMs = 2000; // Poll every 2 seconds
+
+            while (!isCompleted && attempts < maxAttempts) {
+                attempts++;
+                updateStatus(`Checking document status (${attempts}/${maxAttempts})...`, 'loading');
+                try {
+                    // ASSUMING YOUR BACKEND HAS AN ENDPOINT LIKE THIS
+                    const response = await fetch(`${API_BASE_URL}/api/document_status/${documentId}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        // You might need to pass user or auth token
+                    });
+                    const data = await response.json();
+
+                    // Adjust this condition based on your backend's actual status response
+                    if (response.ok && data.status === 'completed') { 
+                        isCompleted = true;
+                    } else {
+                        console.log(`Document ${documentId} not yet completed. Retrying...`);
+                        await new Promise(resolve => setTimeout(resolve, delayMs));
+                    }
+                } catch (error) {
+                    console.error('Error checking document status:', error);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
+
+            if (!isCompleted) {
+                throw new Error(`Document ${documentId} did not complete in time.`);
+            }
+            updateStatus('Document is ready!', 'info');
+        }
 
         /**
          * Main function to handle the Q&A generation process.
@@ -144,17 +416,20 @@
 
             try {
                 // 3. Parse file into text chunks
+                updateStatus('Parsing file...', 'loading');
                 const chunks = await parseFileIntoChunks(file);
                 if (!chunks || chunks.length === 0) {
                     throw new Error('Could not extract any text from the file.');
                 }
                 updateStatus(`File parsed into ${chunks.length} text chunks.`, 'info');
-
+                
                 // 4. Create the empty Q&A knowledge base
                 updateStatus('Creating Q&A knowledge base...', 'loading');
                 const { qa_dataset_id, qa_document_id } = await createQAKnowledgeBase(kbName, language, userId);
+                activeDatasetId = qa_dataset_id; // Store for potential future use (e.g., in retrieval)
+                activeDocumentIds.push(qa_document_id); // Store all document IDs
                 updateStatus('Knowledge base created. Starting Q&A generation...', 'info');
-                
+                waitForDocumentCompletion(activeDatasetId, userId);
                 // 5. Process each chunk to generate Q&A
                 let globalRowIndex = 1;
                 for (const chunk of chunks) {
@@ -264,6 +539,32 @@
             return data.data?.outputs?.result?.[0]?.response?.data || [];
         }
 
+        // Function to load knowledge bases into the dropdown
+        async function loadKnowledgeBases() {
+            const select = document.getElementById('kb-select-retrieval');
+            select.innerHTML = '<option>Loading...</option>';
+            try {
+                updateStatus('Loading knowledge bases...', 'info');
+                const response = await fetch('/api/datasets');
+                if (!response.ok) throw new Error('Failed to fetch API.');
+                
+                const data = await response.json();
+                // --- CORRECTED LINE ---
+                const datasets = data.data.data || []; // Access the nested data array
+
+                if(datasets.length > 0) {
+                    select.innerHTML = datasets.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+                    updateStatus('Knowledge bases loaded. Please select one.', 'success');
+                } else {
+                    select.innerHTML = '<option value="">No knowledge bases found</option>';
+                    updateStatus('No knowledge bases were found on the platform.', 'info');
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+                select.innerHTML = `<option value="">Error loading KBs</option>`;
+            }
+        }
+
         /**
          * Exports the content of the results table to a CSV file.
          */
@@ -279,6 +580,7 @@
 
             for (let i = 1; i < table.rows.length; i++) {
                 const cells = table.rows[i].cells;
+                // Escape double quotes by doubling them, then wrap in double quotes
                 const rowData = Array.from(cells).map(cell => `"${cell.textContent.replace(/"/g, '""')}"`).join(',');
                 csvContent += rowData + "\r\n";
             }
