@@ -176,9 +176,11 @@
                     <label for="kb-select-retrieval" class="block text-sm font-medium text-gray-700">Select Knowledge Base:</label>
                     <select id="kb-select-retrieval" class="input-field mt-1">
                         <option value="">-- Select a KB --</option>
-                        <option value="example-kb-1">Product Manual v1</option>
-                        <option value="example-kb-2">Company Policy Docs</option>
                     </select>
+                </div>
+                <div>
+                    <label for="retrieval-user-id" class="block text-sm font-medium text-gray-700">User ID</label>
+                    <input type="text" id="retrieval-user-id" class="input-field mt-1" placeholder="e.g., user-456">
                 </div>
                 <button type="button" id="query-button" class="btn btn-primary">
                     <i class="fa-solid fa-search"></i> Search Knowledge Base
@@ -202,7 +204,7 @@
     </div>
 
     <footer class="bg-gray-800 text-white text-center p-4 mt-8">
-        <p>&copy; 2025 Knowledge Factory. All rights reserved.</p>
+        <p>&copy; 2025 Helport AI. All rights reserved.</p>
     </footer>
 
     <script>
@@ -319,43 +321,99 @@
             const queryInput = document.getElementById('query-input').value;
             const kbSelect = document.getElementById('kb-select-retrieval').value;
             const queryResultDisplay = document.getElementById('query-result-display');
+            const userId = document.getElementById('retrieval-user-id').value;
+            const language = document.getElementById('document-language').value; // Get language from the form
 
-            if (!queryInput || !kbSelect) {
-                queryResultDisplay.innerHTML = '<p class="text-red-600">Please enter a query and select a knowledge base.</p>';
+            if (!queryInput || !kbSelect || !userId) {
+                queryResultDisplay.innerHTML = '<p class="text-red-600">Please provide a User ID, select a knowledge base, and enter a query.</p>';
                 return;
             }
 
             queryResultDisplay.innerHTML = '<p class="text-blue-600 animate-pulse">Searching...</p>';
 
             try {
-                // Simulate API call - REPLACE WITH YOUR ACTUAL RETRIEVAL API ENDPOINT
-                const response = await fetch(`${API_BASE_URL}/api/qa/retrieve`, { 
+                // Step 1: Create a temporary Q&A knowledge base to store the results.
+                const tempKbName = `temp-kb-${Date.now()}`;
+                updateStatus('Creating temporary Q&A session...', 'loading');
+                const createKbResponse = await fetch(`${API_BASE_URL}/api/qa/create_qa_knowledge`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        query: queryInput,
-                        dataset_id: kbSelect,
-                        user: document.getElementById('user-id').value // Or a dedicated user ID for retrieval
+                        inputs: {
+                            qa_knowledge_name: tempKbName,
+                            doc_language: language,
+                            clear_history: "否"
+                        },
+                        response_mode: "blocking",
+                        user: userId
                     })
                 });
+                if (!createKbResponse.ok) throw new Error('Could not create a temporary Q&A session.');
+                const createKbData = await createKbResponse.json();
+                const { qa_dataset_id, qa_document_id } = createKbData.data.outputs;
+
+                // Step 2: Call the findAnswer workflow with ALL required inputs.
+                updateStatus('Retrieving answer from knowledge base...', 'loading');
+                const findAnswerBody = {
+                    inputs: {
+                        query: queryInput,
+                        dataset_id: kbSelect, // The source KB selected by the user
+                        doc_language: language,
+                        qa_dataset_id: qa_dataset_id, // The temporary KB ID
+                        qa_document_id: qa_document_id // The temporary document ID
+                    },
+                    response_mode: "blocking",
+                    user: userId
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/api/qa/findAnswer`, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(findAnswerBody)
+                });
+                
                 const data = await response.json();
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Failed to retrieve answer.');
                 }
 
-                if (data.data && data.data.outputs && data.data.outputs.answer) {
-                    queryResultDisplay.innerHTML = `<p class="font-semibold">Answer:</p><p>${data.data.outputs.answer}</p>`;
+                // The answer is now inside the 'result' of the 'chunks插入文档' node.
+                const finalResult = data.data?.outputs?.result?.[0];
+
+                if (finalResult && finalResult.status === 'success') {
+                    const answerContent = finalResult.response?.data?.[0]?.answer || "Answer found, but content is empty.";
+                    queryResultDisplay.innerHTML = `<p class="font-semibold">Answer:</p><p>${answerContent}</p>`;
+                    updateStatus('Answer retrieved successfully!', 'success');
                 } else {
-                    queryResultDisplay.innerHTML = '<p class="text-gray-700">No relevant answer found.</p>';
+                    queryResultDisplay.innerHTML = `<p class="text-gray-700">No relevant answer found. (Status: ${finalResult?.status}, Message: ${finalResult?.message})</p>`;
+                    updateStatus('Completed, but no answer was found.', 'info');
+
                 }
 
             } catch (error) {
                 queryResultDisplay.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`;
+                updateStatus(`Error: ${error.message}`, 'error');
                 console.error('Retrieval failed:', error);
+            } finally {
+                if (qa_dataset_id) {
+                    updateStatus('Cleaning up temporary session...', 'loading');
+                    try {
+                        await fetch(`${API_BASE_URL}/api/datasets/${qa_dataset_id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        console.log(`Temporary knowledge base ${qa_dataset_id} deleted successfully.`);
+                        updateStatus('Cleanup complete.', 'success');
+                    } catch (cleanupError) {
+                        console.error('Failed to delete temporary knowledge base:', cleanupError);
+                        updateStatus('Failed to clean up temporary session.', 'error');
+                    }
+                }
             }
         }
-        async function waitForDocumentCompletion(documentId, userId) {
+        // still working on it
+        async function waitForDocumentCompletion(datasetId, batch) {
             let isCompleted = false;
             let attempts = 0;
             const maxAttempts = 10;
@@ -365,11 +423,10 @@
                 attempts++;
                 updateStatus(`Checking document status (${attempts}/${maxAttempts})...`, 'loading');
                 try {
-                    // ASSUMING YOUR BACKEND HAS AN ENDPOINT LIKE THIS
-                    const response = await fetch(`${API_BASE_URL}/api/document_status/${documentId}`, {
+                    const response = await fetch(`${API_BASE_URL}/api/document_status`, {
                         method: 'GET',
                         headers: { 'Content-Type': 'application/json' },
-                        // You might need to pass user or auth token
+                        body: JSON.stringify({ datasetId, batch })
                     });
                     const data = await response.json();
 

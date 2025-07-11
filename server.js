@@ -136,6 +136,11 @@ app.post('/api/qa/generate', async (req, res) => {
 // Find an answer to a question
 app.post('/api/qa/findAnswer', async (req, res) => {
     logWithTimestamp('INFO', 'Request to find answer', { body: req.body });
+    const { query, dataset_id, doc_language, qa_dataset_id, qa_document_id } = req.body.inputs;
+    
+    if (!query || !dataset_id || !doc_language || !qa_dataset_id || !qa_document_id) {
+        return res.status(400).json({ error: 'Missing one or more required inputs for findAnswer workflow.' });
+    }
     try {
         const response = await axios.post(`${BASE_URL}/workflows/run`, req.body, {
             headers: {
@@ -212,6 +217,66 @@ app.get('/api/datasets/:datasetId/documents/:documentId/segments', async (req, r
         res.status(500).json({ error: 'Failed to get document segments', details: error.message });
     }
 });
+
+app.get('/api/document-status', async(req, res) => {
+    const { datasetId, batch } = req.body;
+    if (!datasetId || !batch){
+        return res.status(400).json({ error: 'datasetId and documentId are required in the body.' });
+    }
+    logWithTimestamp('INFO', 'Request to get document indexing status', { dataset_id: datasetId, batch: batch });
+    try{
+        const response = await axios.get(`${BASE_URL}/datasets/${datasetId}/documents/${batch}/indexing-status`, {
+            headers: {
+                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        logWithTimestamp('INFO', '<-- Success response from /indexing-status', { data: response.data });
+        res.json(response.data);
+    } catch (error) {
+        logWithTimestamp('ERROR', 'Failed to get document indexing status', { dataset_id: datasetId, batch: batch, message: error.message });
+        res.status(500).json({ error: 'Failed to get document indexing status' });
+    }
+
+});
+
+app.delete('/api/datasets/:datasetId', async (req, res) => {
+    const { datasetId } = req.params;
+    if (!datasetId) {
+        return res.status(400).json({ message: 'Dataset ID is required.' });
+    }
+    console.log(`Forwarding DELETE request for dataset ${datasetId}`);
+    try {
+        const response = await axios.delete(`${BASE_URL}/datasets/${datasetId}`, {
+            headers: {
+                // Use 'Authorization' header with a Bearer token, a common standard
+                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log('Dataset successfully deleted from Helport API.');
+        res.status(200).json({
+            message: `Dataset with ID: ${datasetId} deleted successfully.`,
+            data: response.data
+        });
+    } catch (error){
+        console.error('Error deleting dataset from Helport API:', error.response ? error.response.data : error.message);
+
+        if (error.response) {
+            res.status(error.response.status).json({
+                message: `Failed to delete dataset with ID: ${datasetId}.`,
+                error: error.response.data
+            });
+        } else {
+            res.status(500).json({
+                message: 'An unexpected server error occurred.',
+                error: error.message
+            });
+        }
+    }
+
+});
+
 
 // app.post('/api/faq/generate', async (req, res) => {
 //     const { scenario, category, num, answer_format, userId } = req.body;
