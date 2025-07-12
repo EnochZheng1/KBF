@@ -169,7 +169,7 @@
             <p class="text-gray-600 mb-4">This section would allow users to query an existing knowledge base and retrieve answers.</p>
             <div class="space-y-4">
                 <div>
-                    <label for="query-input" class="block text-sm font-medium text-gray-700">Enter your query:</label>
+                    <label for="query-input" class="block text-sm font-medium text-gray-700">Enter your question:</label>
                     <input type="text" id="query-input" class="input-field mt-1" placeholder="e.g., What are the product specifications?">
                 </div>
                 <div>
@@ -315,6 +315,60 @@
             }
         });
 
+        // async function processAnswerFinding(datasetId, qaDatasetId, retryCount=0){
+        //     updateStatus(`正在查找问题 "${question.substring(0, 60)}..." 的答案...`, 'loading');
+        //     const question = document.getElementById('query-input').value;
+        //     const datasetId = document.getElementById('kb-select-retrieval').value;
+        //     const userId = document.getElementById('retrieval-user-id').value;
+        //     const language = document.getElementById('document-language').value;
+        //     const requestBody = {
+        //         inputs: {
+        //             doc_language: language,
+        //             query: question,
+        //             dataset_id: datasetId,
+        //             qa_dataset_id: qaDatasetId,
+        //             qa_document_id: qaDocumentId
+        //         },
+        //         response_mode: "streaming",
+        //         user: userId
+        //     };
+        //     try {
+        //         const response = await fetch(`${API_BASE_URL}/api/qa/findAnswer`, {
+        //             method: "POST",
+        //             headers:{
+        //                 "Content-Type":"application/json"
+        //             },
+        //             body: JSON.stringify(requestBody)
+        //         });
+        //         if (!response.ok){
+        //             throw new Error(`HTTP error! status: ${response.status}`);
+        //         }
+
+
+        //     } catch(error) {
+        //         console.error('Failed answer retrieval', error);
+        //         if (error.message.includes("Document is not completed") && retryCount < 5) {
+        //             updateStatus(`检测到问答知识库初始化未完成，请稍后，15秒后开始第${retryCount + 1}次重试...`, 'warning');
+        //             return new Promise(resolve => {
+        //                 setTimeout(() => {
+        //                     resolve(processAnswerFinding(
+        //                         question,
+        //                         language,
+        //                         datasetId,
+        //                         qaDatasetId,
+        //                         qaDocumentId,
+        //                         token,
+        //                         clientId,
+        //                         retryCount + 1
+        //                     ));
+        //                 }, 15000); // 15秒间隔
+        //             });
+        //         } else {
+        //             updateStatus(`Failed to find answer: ${error.message}`, 'error');
+        //             throw error;
+        //         }
+        //     }
+        // }
 
         // Placeholder function for handleQuery (for the new Retrieval section)
         async function handleQuery() {
@@ -333,7 +387,7 @@
 
             try {
                 // Step 1: Create a temporary Q&A knowledge base to store the results.
-                const tempKbName = `temp-kb-${Date.now()}`;
+                const tempKbName = `temp-kb-${kbSelect}`;
                 updateStatus('Creating temporary Q&A session...', 'loading');
                 const createKbResponse = await fetch(`${API_BASE_URL}/api/qa/create_qa_knowledge`, {
                     method: 'POST',
