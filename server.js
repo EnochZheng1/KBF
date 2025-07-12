@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 const port = 8080;
+require('dotenv').config();
 
 // --- Middleware ---
 // Provides static file serving from the 'public' folder
@@ -19,17 +20,14 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 
 // --- Configuration ---
-const BASE_URL = "https://agent.helport.ai/v1";
-const API_KEYS = {
-    KB_API_KEY: "dataset-Wui7Wlhj6jtY10rW0wXjoUqo",      // For general knowledge base operations
-    CKB_API_KEY: "app-8eO9ykobHpIHZ9dGicfdRBii",     // For creating knowledge bases from files
-    CQKB_API_KEY: "app-grIDUxUxkAOPApD8kAL21VIO",    // For creating empty Q&A knowledge bases
-    CGQA_API_KEY: "app-FHPDSyg7cYeczAVFLfbHLTr0",    // For generating Q&A from a chunk of text
-    FA_API_KEY: "app-0AoAfHqk1hcmEpZCyuFQE2QA",      // For finding answers to questions
-    CT_API_KEY: "app-uQvMedtGR6A5TvAA8U8mf41d", // 场景类别生成
-    FAQ_API_KEY: "app-tO3bxAksvtgZ2i9FOg71av6u" // 常见问题生成
-
-};
+const { BASE_URL,
+        KB_API_KEY,
+        CKB_API_KEY,
+        CQKB_API_KEY,
+        CGQA_API_KEY,
+        FA_API_KEY,
+        CT_API_KEY,
+        FAQ_API_KEY } = process.env;
 
 // --- Logger Utility ---
 function logWithTimestamp(level, message, data = {}) {
@@ -63,7 +61,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         const response = await axios.post(`${BASE_URL}/files/upload`, formData, {
             headers: {
                 ...formData.getHeaders(),
-                'Authorization': `Bearer ${API_KEYS.CKB_API_KEY}`,
+                'Authorization': `Bearer ${CKB_API_KEY}`,
             }
         });
         
@@ -83,7 +81,7 @@ app.post('/api/qa/create_knowledge', async (req, res) => {
     try {
         const response = await axios.post(`${BASE_URL}/workflows/run`, req.body, {
             headers: {
-                'Authorization': `Bearer ${API_KEYS.CKB_API_KEY}`,
+                'Authorization': `Bearer ${CKB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -101,7 +99,7 @@ app.post('/api/qa/create_qa_knowledge', async (req, res) => {
     try {
         const response = await axios.post(`${BASE_URL}/workflows/run`, req.body, {
             headers: {
-                'Authorization': `Bearer ${API_KEYS.CQKB_API_KEY}`,
+                'Authorization': `Bearer ${CQKB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -121,7 +119,7 @@ app.post('/api/qa/generate', async (req, res) => {
     try {
         const response = await axios.post(`${BASE_URL}/workflows/run`, req.body, {
             headers: {
-                'Authorization': `Bearer ${API_KEYS.CGQA_API_KEY}`,
+                'Authorization': `Bearer ${CGQA_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -144,7 +142,7 @@ app.post('/api/qa/findAnswer', async (req, res) => {
     try {
         const response = await axios.post(`${BASE_URL}/workflows/run`, req.body, {
             headers: {
-                'Authorization': `Bearer ${API_KEYS.FA_API_KEY}`,
+                'Authorization': `Bearer ${FA_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -163,7 +161,7 @@ app.get('/api/datasets', async (req, res) => {
         const response = await axios.get(`${BASE_URL}/datasets`, {
             params: req.query,
             headers: {
-                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Authorization': `Bearer ${KB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -184,7 +182,7 @@ app.get('/api/datasets/:datasetId/documents', async (req, res) => {
         const response = await axios.get(`${BASE_URL}/datasets/${datasetId}/documents`, {
             params: req.query,
             headers: {
-                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Authorization': `Bearer ${KB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -205,7 +203,7 @@ app.get('/api/datasets/:datasetId/documents/:documentId/segments', async (req, r
         const response = await axios.get(`${BASE_URL}/datasets/${datasetId}/documents/${documentId}/segments`, {
             params: req.query,
             headers: {
-                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Authorization': `Bearer ${KB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -227,7 +225,7 @@ app.get('/api/document-status', async(req, res) => {
     try{
         const response = await axios.get(`${BASE_URL}/datasets/${datasetId}/documents/${batch}/indexing-status`, {
             headers: {
-                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Authorization': `Bearer ${KB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -250,7 +248,7 @@ app.delete('/api/datasets/:datasetId', async (req, res) => {
         const response = await axios.delete(`${BASE_URL}/datasets/${datasetId}`, {
             headers: {
                 // Use 'Authorization' header with a Bearer token, a common standard
-                'Authorization': `Bearer ${API_KEYS.KB_API_KEY}`,
+                'Authorization': `Bearer ${KB_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
