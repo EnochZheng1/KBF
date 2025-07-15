@@ -37,9 +37,13 @@
         .table-cell {
             @apply px-6 py-4 whitespace-normal break-words;
         }
-        #result-table-container {
+        /* Make history table scrollable too */
+        #result-table-container, #history-table-container {
             max-height: 500px;
             overflow-y: auto;
+        }
+        .keyword-tag {
+            @apply inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2;
         }
 
         /* Custom styles for navigation bar responsiveness */
@@ -90,13 +94,12 @@
                         <a href="#qa-retrieval" class="nav-link text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md" data-page-id="qa-retrieval">Q&A Retrieval</a>
                     </li>
                     <li class="nav-item">
+                        <a href="#history" class="nav-link text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md" data-page-id="history">History</a>
+                    </li>
+                    <li class="nav-item">
                         <a href="#settings" class="nav-link text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md" data-page-id="settings">Settings</a>
                     </li>
                 </ul>
-                <div class="navbar-cta-mobile flex-col md:flex md:flex-row md:ml-8 gap-3 mt-4 md:mt-0">
-                    <a href="#login" class="btn btn-primary text-sm">Login</a>
-                    <a href="#signup" class="btn btn-secondary text-sm">Sign Up</a>
-                </div>
             </div>
         </div>
     </nav>
@@ -104,13 +107,12 @@
     <div class="container mx-auto px-4 py-8 max-w-4xl flex-grow">
         <div id="qa-generation-section" class="space-y-8">
             <h1 class="text-3xl font-bold mb-4 text-center">Q&A Generation</h1>
-
             <div class="bg-white rounded-xl shadow-md p-6 mb-8">
                 <form id="qa-form" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label for="file-upload" class="block text-sm font-medium text-gray-700">1. Upload Document</label>
-                            <input type="file" id="file-upload" accept=".pdf,.docx" class="input-field mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            <input type="file" id="file-upload" accept=".pdf,.docx,.mp4" class="input-field mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                         </div>
                         <div>
                             <label for="document-language" class="block text-sm font-medium text-gray-700">2. Document Language</label>
@@ -124,7 +126,6 @@
                             <input type="text" id="user-id" class="input-field mt-1" placeholder="e.g., user-123">
                         </div>
                     </div>
-
                     <div>
                         <label for="kb-name" class="block text-sm font-medium text-gray-700">4. New Knowledge Base Name</label>
                         <input type="text" id="kb-name" class="input-field mt-1" placeholder="e.g., product-manual-v1">
@@ -133,8 +134,7 @@
                         <label for="generation-requirements" class="block text-sm font-medium text-gray-700">5. Generation Requirements (Optional)</label>
                         <textarea id="generation-requirements" class="input-field mt-1 min-h-[120px]" placeholder="Enter any specific instructions for Q&A generation..."></textarea>
                     </div>
-
-                    <div class="flex flex-wrap gap-4 pt-4 border-t">
+                    <div class="flex flex-wrap gap-4 pt-4 border-t" id="action-buttons">
                         <button type="button" id="generate-button" class="btn btn-primary">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Q&A
                         </button>
@@ -144,7 +144,6 @@
                     </div>
                 </form>
             </div>
-
             <div class="bg-white rounded-xl shadow-md p-6">
                 <h2 class="text-xl font-bold mb-4">Results</h2>
                 <div id="status" class="bg-gray-100 p-4 rounded-lg border mb-4 text-center">Waiting for action...</div>
@@ -153,12 +152,12 @@
                         <thead>
                             <tr>
                                 <th class="table-header w-1/12">#</th>
-                                <th class="table-header w-5/12">Question</th>
-                                <th class="table-header w-6/12">Answer</th>
+                                <th class="table-header w-4/12">Question</th>
+                                <th class="table-header w-4/12">Answer</th>
+                                <th class="table-header w-3/12">Keywords</th>
                             </tr>
                         </thead>
-                        <tbody id="result-table-body" class="bg-white divide-y divide-gray-200">
-                            </tbody>
+                        <tbody id="result-table-body" class="bg-white divide-y divide-gray-200"></tbody>
                     </table>
                 </div>
             </div>
@@ -191,6 +190,25 @@
             </div>
         </div>
 
+        <div id="history" class="bg-white rounded-xl shadow-md p-6 mt-8 hidden">
+            <h1 class="text-3xl font-bold mb-4 text-center">Generation History</h1>
+            <p class="text-gray-600 mb-6 text-center">Review and load results from past runs saved in your browser.</p>
+            <div id="history-table-container" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="table-header">Knowledge Base Name</th>
+                            <th class="table-header">Date Saved</th>
+                            <th class="table-header">Q&A Pairs</th>
+                            <th class="table-header">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
         <div id="settings" class="bg-white rounded-xl shadow-md p-6 mt-8 hidden">
             <h1 class="text-3xl font-bold mb-4 text-center">Settings</h1>
             <p class="text-gray-600">Manage application settings and preferences here. This could include API key management, user profiles, etc.</p>
@@ -208,6 +226,7 @@
     </footer>
 
     <script>
+        const HISTORY_STORAGE_KEY = 'kbf_history';
         const API_BASE_URL = ''; // The server is on the same origin
         let activeDatasetId = "";
         let activeDocumentIds = [];
@@ -387,7 +406,9 @@
 
             try {
                 // Step 1: Create a temporary Q&A knowledge base to store the results.
-                const tempKbName = `temp-kb-${kbSelect}`;
+                const shortId = await getShortIdFromBackend(kbSelect);
+
+                const tempKbName = `temp-kb-${shortId}`;
                 updateStatus('Creating temporary Q&A session...', 'loading');
                 const createKbResponse = await fetch(`${API_BASE_URL}/api/qa/create_qa_knowledge`, {
                     method: 'POST',
@@ -549,10 +570,14 @@
                     
                     qaPairs.forEach(pair => {
                         const row = resultTableBody.insertRow();
+                        const keywordsHtml = (pair.keywords || [])
+                            .map(kw => `<span class="keyword-tag">${kw}</span>`)
+                            .join(', ');
                         row.innerHTML = `
                             <td class="table-cell text-center">${globalRowIndex++}</td>
                             <td class="table-cell">${pair.content || 'N/A'}</td>
                             <td class="table-cell">${pair.answer || 'N/A'}</td>
+                            <td class="table-cell">${keywordsHtml || 'N/A'}</td>
                         `;
                     });
                     // Auto-scroll to the bottom of the table
@@ -568,6 +593,36 @@
         }
 
         /**
+         * A utility to split a large block of text into smaller chunks.
+         * This helps ensure each chunk fits within the context window of the AI model.
+         * @param {string} text The full text to be chunked.
+         * @param {number} chunkSize The approximate size of each chunk in characters.
+         */
+        function chunkText(text, chunkSize = 2000) {
+            const chunks = [];
+            // Split by paragraph-like structures first to maintain context
+            const paragraphs = text.split(/\n\s*\n/); 
+            let currentChunk = '';
+
+            for (const para of paragraphs) {
+                // If adding the next paragraph exceeds the chunk size, push the current chunk and start a new one.
+                if (currentChunk.length + para.length + 2 > chunkSize && currentChunk.length > 0) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = '';
+                }
+                currentChunk += para + '\n\n';
+            }
+
+            // Add the last remaining chunk
+            if (currentChunk.trim()) {
+                chunks.push(currentChunk.trim());
+            }
+
+            return chunks;
+        }
+
+
+        /**
          * Parses the uploaded file (PDF or DOCX) into an array of text chunks.
          */
         async function parseFileIntoChunks(file) {
@@ -576,6 +631,8 @@
                 return await parsePdf(file);
             } else if (fileExtension === 'docx') {
                 return await parseDocx(file);
+            } else if (fileExtension === 'mp4') {
+                return await parseMp4(file);
             } else {
                 throw new Error('Unsupported file type. Please upload a PDF or DOCX file.');
             }
@@ -601,6 +658,30 @@
             const result = await mammoth.extractRawText({ arrayBuffer });
             // Split the text into manageable chunks (e.g., by paragraph or character count)
             return result.value.split(/\n\s*\n/).filter(p => p.trim());
+        }
+
+        async function parseMp4(file) {
+            updateStatus('Uploading and processing video... This may take several minutes.', 'loading');
+            const formData = new FormData();
+            formData.append('video', file);
+            formData.append('user', document.getElementById('user-id').value);
+
+            const response = await fetch(`${API_BASE_URL}/api/video/process`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to process video: ${errorData.error}`);
+            }
+
+            const result = await response.json();
+            
+            updateStatus('Video processing complete. Chunking text...', 'loading');
+            
+            // **CRITICAL CHANGE**: Chunk the returned text on the frontend
+            return chunkText(result.full_text);
         }
 
         /**
@@ -687,12 +768,19 @@
             }
 
             let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "Index,Question,Answer\n"; // Header row
+            csvContent += "Index,Question,Answer,Keywords\n"; // Header row
 
             for (let i = 1; i < table.rows.length; i++) {
                 const cells = table.rows[i].cells;
-                // Escape double quotes by doubling them, then wrap in double quotes
-                const rowData = Array.from(cells).map(cell => `"${cell.textContent.replace(/"/g, '""')}"`).join(',');
+                const index = cells[0].textContent;
+                const question = `"${cells[1].textContent.replace(/"/g, '""')}"`;
+                const answer = `"${cells[2].textContent.replace(/"/g, '""')}"`;
+                
+                // Extract keywords from the span tags
+                const keywordSpans = cells[3].querySelectorAll('.keyword-tag');
+                const keywords = Array.from(keywordSpans).map(span => span.textContent).join(', ');
+                
+                const rowData = [index, question, answer, `"${keywords}"`].join(',');
                 csvContent += rowData + "\r\n";
             }
 
@@ -717,6 +805,40 @@
             
             statusDiv.className = `p-4 rounded-lg border text-center ${colorClass}`;
             statusDiv.textContent = message;
+        }
+
+        // This async function calls your new backend endpoint
+        async function getShortIdFromBackend(uuid) {
+            try {
+                const response = await fetch('/api/generate-short-id', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ longId: uuid })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Network response was not ok');
+                }
+
+                const data = await response.json();
+                return data.shortId;
+
+            } catch (error) {
+                console.error('There was a problem fetching the short ID:', error);
+                return null;
+            }
+        }
+
+        function isTableOfContents(text) {
+            // 目录检测规则，可以根据实际情况调整
+            const tableOfContentsKeywords = [
+                "目录", "Contents", "目 录", "目　录", "索引",
+                "第", "章", "节", ". . . .", "....", "Index\r\n"
+            ];
+            return tableOfContentsKeywords.some(keyword => text.includes(keyword));
         }
     </script>
 </body>
