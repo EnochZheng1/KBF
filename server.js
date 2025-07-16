@@ -42,7 +42,7 @@ const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 15_000;
 const MAX_RETRIES_FANI = 7;
 const RETRY_DELAY_MS_FANI = 7_000;
-
+const VIDEO_SPLIT_INTERVAL = 600;
 // --- Logger Utility ---
 function logWithTimestamp(level, message, data = {}) {
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -361,7 +361,7 @@ app.post('/api/video/process', videoUpload.single('video'), async (req, res) => 
 
         logWithTimestamp('INFO', 'Starting video extraction...', { videoPath });
         // Extracts media every 10 seconds. You can adjust this interval.
-        const { framesDir, audioDir } = await extractMediaEveryNSeconds(videoPath, tmpDir, 600);
+        const { framesDir, audioDir } = await extractMediaEveryNSeconds(videoPath, tmpDir, VIDEO_SPLIT_INTERVAL);
 
         const framePaths = (await fs.readdir(framesDir)).map(f => path.join(framesDir, f)).sort();
         const audioPaths = (await fs.readdir(audioDir)).map(f => path.join(audioDir, f)).sort();
@@ -374,7 +374,9 @@ app.post('/api/video/process', videoUpload.single('video'), async (req, res) => 
                 processAudioFile(audioPaths[i], user),
             ]);
             // Combine the visual summary and audio transcription for each segment
-            segmentStrings.push(`Timestamp: ${i*10}-${(i+1)*10} seconds.\nVisual Summary: ${imageResult}\nAudio Transcription: ${audioResult}`);
+            const startTime = i * VIDEO_SPLIT_INTERVAL;
+            const endTime = startTime + VIDEO_SPLIT_INTERVAL;
+            segmentStrings.push(`Timestamp: ${startTime}-${endTime} seconds.\nVisual Summary: ${imageResult}\nAudio Transcription: ${audioResult}`);
         }
 
         // Join all segments into one large block of text

@@ -512,41 +512,41 @@
             }
         }
         // still working on it
-        async function waitForDocumentCompletion(datasetId, batch) {
-            let isCompleted = false;
-            let attempts = 0;
-            const maxAttempts = 10;
-            const delayMs = 2000; // Poll every 2 seconds
+        // async function waitForDocumentCompletion(datasetId, batch) {
+        //     let isCompleted = false;
+        //     let attempts = 0;
+        //     const maxAttempts = 10;
+        //     const delayMs = 2000; // Poll every 2 seconds
 
-            while (!isCompleted && attempts < maxAttempts) {
-                attempts++;
-                updateStatus(`Checking document status (${attempts}/${maxAttempts})...`, 'loading');
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/document_status`, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ datasetId, batch })
-                    });
-                    const data = await response.json();
+        //     while (!isCompleted && attempts < maxAttempts) {
+        //         attempts++;
+        //         updateStatus(`Checking document status (${attempts}/${maxAttempts})...`, 'loading');
+        //         try {
+        //             const response = await fetch(`${API_BASE_URL}/api/document_status`, {
+        //                 method: 'GET',
+        //                 headers: { 'Content-Type': 'application/json' },
+        //                 body: JSON.stringify({ datasetId, batch })
+        //             });
+        //             const data = await response.json();
 
-                    // Adjust this condition based on your backend's actual status response
-                    if (response.ok && data.status === 'completed') { 
-                        isCompleted = true;
-                    } else {
-                        console.log(`Document ${documentId} not yet completed. Retrying...`);
-                        await new Promise(resolve => setTimeout(resolve, delayMs));
-                    }
-                } catch (error) {
-                    console.error('Error checking document status:', error);
-                    await new Promise(resolve => setTimeout(resolve, delayMs));
-                }
-            }
+        //             // Adjust this condition based on your backend's actual status response
+        //             if (response.ok && data.status === 'completed') { 
+        //                 isCompleted = true;
+        //             } else {
+        //                 console.log(`Document ${documentId} not yet completed. Retrying...`);
+        //                 await new Promise(resolve => setTimeout(resolve, delayMs));
+        //             }
+        //         } catch (error) {
+        //             console.error('Error checking document status:', error);
+        //             await new Promise(resolve => setTimeout(resolve, delayMs));
+        //         }
+        //     }
 
-            if (!isCompleted) {
-                throw new Error(`Document ${documentId} did not complete in time.`);
-            }
-            updateStatus('Document is ready!', 'info');
-        }
+        //     if (!isCompleted) {
+        //         throw new Error(`Document ${documentId} did not complete in time.`);
+        //     }
+        //     updateStatus('Document is ready!', 'info');
+        // }
 
         /**
          * Main function to handle the Q&A generation process.
@@ -588,7 +588,7 @@
                 activeDatasetId = qa_dataset_id; // Store for potential future use (e.g., in retrieval)
                 activeDocumentIds.push(qa_document_id); // Store all document IDs
                 updateStatus('Knowledge base created. Starting Q&A generation...', 'info');
-                waitForDocumentCompletion(activeDatasetId, userId);
+                //waitForDocumentCompletion(activeDatasetId, userId);
                 // 5. Process each chunk to generate Q&A
                 let globalRowIndex = 1;
                 for (const chunk of chunks) {
