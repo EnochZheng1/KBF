@@ -361,7 +361,7 @@ app.post('/api/video/process', videoUpload.single('video'), async (req, res) => 
 
         logWithTimestamp('INFO', 'Starting video extraction...', { videoPath });
         // Extracts media every 10 seconds. You can adjust this interval.
-        const { framesDir, audioDir } = await extractMediaEveryNSeconds(videoPath, tmpDir, 100);
+        const { framesDir, audioDir } = await extractMediaEveryNSeconds(videoPath, tmpDir, 600);
 
         const framePaths = (await fs.readdir(framesDir)).map(f => path.join(framesDir, f)).sort();
         const audioPaths = (await fs.readdir(audioDir)).map(f => path.join(audioDir, f)).sort();

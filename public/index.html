@@ -138,8 +138,14 @@
                         <button type="button" id="generate-button" class="btn btn-primary">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Q&A
                         </button>
-                        <button type="button" id="export-csv-button" class="btn btn-secondary">
+                        <button type="button" id="cancel-button" class="btn btn-danger hidden">
+                            <i class="fa-solid fa-stop"></i> Force Stop
+                        </button>
+                        <!-- <button type="button" id="export-csv-button" class="btn btn-secondary">
                             <i class="fa-solid fa-file-csv"></i> Export as CSV
+                        </button> -->
+                        <button type="button" id="export-xlsx-button" class="btn btn-secondary">
+                            <i class="fa-solid fa-file-excel"></i> Export as XLSX
                         </button>
                     </div>
                 </form>
@@ -231,9 +237,17 @@
         let activeDatasetId = "";
         let activeDocumentIds = [];
 
+        let isGenerationCancelled = false;
+        let abortController = null;
+
+        // TEST
+        // loadDefaultData();
+
         // --- Event Listeners ---
         document.getElementById('generate-button').addEventListener('click', handleGeneration);
-        document.getElementById('export-csv-button').addEventListener('click', exportToCsv);
+        //document.getElementById('export-csv-button').addEventListener('click', exportToCsv);
+        document.getElementById('cancel-button').addEventListener('click', cancelGeneration);
+        document.getElementById('export-xlsx-button').addEventListener('click', exportToXlsx);
 
         // Navbar Toggler for mobile
         document.getElementById('navbar-toggler').addEventListener('click', () => {
@@ -241,11 +255,21 @@
             navbarLinks.classList.toggle('active');
         });
 
+
+        // Cancel Function
+        function cancelGeneration(){
+            if (abortController){
+                updateStatus('Cancelling process...', 'warning');
+                isGenerationCancelled = true;
+                abortController.abort();
+            }
+        }
+
         // --- Page Navigation (Simple Hash-based for this example) ---
         // Function to show/hide sections based on pageId
         function navigateToPage(pageId) {
             // Define all main content sections by their IDs
-            const allSections = ['qa-generation-section', 'qa-retrieval', 'settings'];
+            const allSections = ['qa-generation-section', 'qa-retrieval', 'history', 'settings'];
 
             allSections.forEach(id => {
                 const section = document.getElementById(id);
@@ -529,6 +553,7 @@
          */
         async function handleGeneration() {
             // 1. Get and validate inputs
+            isGenerationCancelled = false;
             const fileInput = document.getElementById('file-upload');
             const file = fileInput.files[0];
             const userId = document.getElementById('user-id').value;
@@ -536,6 +561,8 @@
             const language = document.getElementById('document-language').value;
             const requirements = document.getElementById('generation-requirements').value;
             const resultTableBody = document.getElementById('result-table-body');
+            document.getElementById('cancel-button').classList.remove('hidden');
+            document.getElementById('generate-button').disabled = true;
             
             if (!file || !userId || !kbName) {
                 updateStatus('Please fill all fields: Upload Document, User ID, and Knowledge Base Name.', 'error');
@@ -565,9 +592,15 @@
                 // 5. Process each chunk to generate Q&A
                 let globalRowIndex = 1;
                 for (const chunk of chunks) {
-                    updateStatus(`Processing chunk ${globalRowIndex}/${chunks.length}...`, 'loading');
+                    if (isGenerationCancelled){
+                        updateStatus('Process stopped by user.', 'info');
+                        break;
+                    }
+                    updateStatus(`Processing number ${globalRowIndex} Q&A`, 'loading');
                     const qaPairs = await generateQaFromChunk(chunk, language, qa_dataset_id, qa_document_id, userId, requirements);
                     
+                    if (isGenerationCancelled) break;
+
                     qaPairs.forEach(pair => {
                         const row = resultTableBody.insertRow();
                         const keywordsHtml = (pair.keywords || [])
@@ -589,6 +622,11 @@
             } catch (error) {
                 updateStatus(`An error occurred: ${error.message}`, 'error');
                 console.error('Generation process failed:', error);
+            } finally {
+                document.getElementById('generate-button').disabled = false;
+                document.getElementById('cancel-button').classList.add('hidden');
+                isGenerationCancelled = false;
+                abortController = null;
             }
         }
 
@@ -710,6 +748,7 @@
          * Sends a text chunk to the backend to generate Q&A pairs.
          */
         async function generateQaFromChunk(chunk, language, qaDatasetId, qaDocumentId, userId, requirements) {
+            abortController = new AbortController();
             const response = await fetch(`${API_BASE_URL}/api/qa/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -793,6 +832,77 @@
             document.body.removeChild(link);
         }
 
+        function exportToXlsx() {
+            const resultTableBody = document.getElementById('result-table-body');
+            if (resultTableBody.rows.length === 0) {
+                updateStatus('No data to export.', 'warning');
+                return;
+            }
+
+            updateStatus('Generating XLSX file...', 'loading');
+
+            const header = [
+                "分类(选填)", 
+                "问题(必填)", 
+                "回答", 
+                "相似问题(选填-多个用##分隔)", 
+                "反例问题(选填-多个用##分隔)", 
+                "是否全部回复(选填-默认FALSE)", 
+                "是否停用(选填-默认FALSE)", 
+                "置信度阈值(选填-默认0)"
+            ];
+
+            const dataForExport = Array.from(resultTableBody.rows).map(row => {
+                const cells = row.cells;
+                const question = cells[1].textContent;
+                const answer = cells[2].textContent;
+
+                return {
+                    "分类(选填)": "",
+                    "问题(必填)": question,
+                    "回答": answer,
+                    "相似问题(选填-多个用##分隔)": "",
+                    "反例问题(选填-多个用##分隔)": "",
+                    "是否全部回复(选填-默认FALSE)": "FALSE",
+                    "是否停用(选填-默认FALSE)": "FALSE",
+                    "置信度阈值(选填-默认0)": 0.7
+                };
+            });
+
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.json_to_sheet(dataForExport, { header: header });
+
+            const headerStyle = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "4F81BD" } },
+                alignment: { horizontal: "center", vertical: "center" }
+            }
+            header.forEach((_, index) => {
+                const cellAddress = XLSX.utils.encode_cell({ c: index, r:0 });
+                if (worksheet[cellAddress]){
+                    worksheet[cellAddress].s = headerStyle;
+                }
+            });
+            worksheet['!cols'] = [
+                { wch: 15 }, // 分类
+                { wch: 50 }, // 问题
+                { wch: 70 }, // 回答
+                { wch: 30 }, // 相似问题
+                { wch: 30 }, // 反例问题
+                { wch: 20 }, // 是否全部回复
+                { wch: 20 }, // 是否停用
+                { wch: 20 }  // 置信度阈值
+            ];
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Q&A Results');
+
+            const kbName = document.getElementById('kb-name').value || 'knowledge_factory';
+            const fileName = `${kbName}_export.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            updateStatus('XLSX file generated successfully!', 'success');
+        }
+
         /**
          * Updates the status message display.
          */
@@ -839,6 +949,41 @@
                 "第", "章", "节", ". . . .", "....", "Index\r\n"
             ];
             return tableOfContentsKeywords.some(keyword => text.includes(keyword));
+        }
+
+        function loadDefaultData() {
+            const resultTableBody = document.getElementById('result-table-body');
+            resultTableBody.innerHTML = ''; // Clear any existing content
+            const defaultQaPairs = [
+                {
+                    question: "What is the primary goal of the Knowledge Factory application?",
+                    answer: "The primary goal is to process documents and videos to automatically generate structured Question & Answer pairs, which can then be used as a knowledge base.",
+                    keywords: ["goal", "application", "knowledge base"]
+                },
+                {
+                    question: "What file types are supported for upload?",
+                    answer: "The application supports uploading PDF (.pdf), Word Documents (.docx), and video files (.mp4).",
+                    keywords: ["file types", "upload", "pdf", "docx", "mp4"]
+                },
+                {
+                    question: "How can a user save their generated results for later use?",
+                    answer: "Users can save their results either by exporting to a styled XLSX file or by using the 'Save to History' feature, which stores the session in the browser's LocalStorage.",
+                    keywords: ["save", "export", "history", "xlsx"]
+                }
+            ];
+            let globalRowIndex = 1;
+            defaultQaPairs.forEach(pair => {
+                const row = resultTableBody.insertRow();
+                const keywordsHtml = (pair.keywords || []).map(kw => `<span class="keyword-tag">${kw}</span>`).join(' ');
+                
+                row.innerHTML = `
+                    <td class="table-cell text-center">${globalRowIndex++}</td>
+                    <td class="table-cell">${pair.question}</td>
+                    <td class="table-cell">${pair.answer}</td>
+                    <td class="table-cell">${keywordsHtml}</td>
+                `;
+            });
+            updateStatus('Showing default example data. Ready to generate.', 'info');
         }
     </script>
 </body>
