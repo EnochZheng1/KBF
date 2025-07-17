@@ -1,7 +1,7 @@
 {
-  "name": "knowledge-factory-stable",
+  "name": "knowledge-factory",
   "version": "1.0.0",
-  "description": "A stable, simplified version of the Knowledge Factory.",
+  "description": "Knowledge Factory",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

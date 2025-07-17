@@ -985,6 +985,69 @@
             });
             updateStatus('Showing default example data. Ready to generate.', 'info');
         }
+        async function parseFileToText(file){
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            if (fileExtension === 'pdf'){
+                return await parsePdfToText(file);
+            } else if (fileExtension === 'docx'){
+                return await parseDocxToText(file);
+            } else if (fileExtension === 'mp4'){
+                return await parseMp4(file);
+            } else {
+                throw new Error('Unsupported file type.');
+            }
+        }
+        async function parsePdfToText(file) {
+            const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
+            const pdf = await loadingTask.promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                // Add a double newline to simulate a page break, which helps the recursive chunker
+                fullText += pageText + '\n\n';
+            }
+            return fullText.trim();
+        }
+        async function parseDocxToText(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            return result.value.trim();
+        }
+        function recursiveChunkText(text, options = {}) {
+            const { chunkSize = 2000, separators = ['\n\n', '\n', ' ', ''] } = options;
+
+            const finalChunks = [];
+
+            // Start with the full text as the first chunk to process
+            let chunksToProcess = [text];
+
+            // Loop through separators from largest to smallest
+            for (const separator of separators) {
+                const nextChunksToProcess = [];
+                for (const chunk of chunksToProcess) {
+                    if (chunk.length <= chunkSize) {
+                        // If the chunk is already small enough, add it to the final list
+                        finalChunks.push(chunk);
+                    } else {
+                        // If the chunk is too large, split it with the current separator
+                        const subChunks = chunk.split(separator);
+                        for (const subChunk of subChunks) {
+                            if (subChunk.trim() !== '') {
+                                // Add these smaller pieces to be processed by the next separator
+                                nextChunksToProcess.push(subChunk);
+                            }
+                        }
+                    }
+                }
+                // The smaller pieces become the input for the next loop iteration
+                chunksToProcess = nextChunksToProcess;
+            }
+            // Any remaining chunks (those that couldn't be split further) are added
+            finalChunks.push(...chunksToProcess.filter(c => c.trim() !== ''));
+            return finalChunks;
+        }
     </script>
 </body>
 

@@ -383,7 +383,6 @@ app.post('/api/video/process', videoUpload.single('video'), async (req, res) => 
         const videoContextString = segmentStrings.join('\n\n---\n\n');
         logWithTimestamp('INFO', 'Video context assembled', { length: videoContextString.length });
 
-        // **CRITICAL CHANGE**: Simply return the generated text
         res.json({
             success: true,
             full_text: videoContextString
